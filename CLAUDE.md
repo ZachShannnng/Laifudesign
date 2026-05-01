@@ -87,7 +87,7 @@ These guidelines are working if: fewer unnecessary changes in diffs, fewer rewri
 
 Laifu Design 是一个 UI 设计智能体，用户通过自然语言对话生成符合设计规范的页面。基于 Claude Code 架构提取的智能体框架，使用 Lovable 设计系统作为默认 UI 风格。
 
-**当前进度**：TODO 1 ✅ TODO 1.2 ✅（项目初始化 + Lovable 设计系统配置完成），下一步 TODO 1.5（智能体框架核心）。
+**当前进度**：TODO 1 ✅ TODO 1.2 ✅ TODO 1.5 ✅ TODO 2 ✅（项目初始化 + Lovable 设计系统 + 智能体框架核心 + 基础 UI 布局完成），下一步 TODO 3（可配置 ModelClient）。
 
 **仓库**：https://github.com/ZachShannnng/Laifudesign
 
@@ -116,7 +116,15 @@ Laifu Design 是一个 UI 设计智能体，用户通过自然语言对话生成
 | `docs/lovable-integration.md` | Lovable 集成文档 |
 | `src/index.css` | TailwindCSS `@theme` + Lovable 配色变量 |
 | `src/types/design-system.ts` | `DesignSystemConfig` 类型 + `DEFAULT_DESIGN_SYSTEM` 常量 |
+| `src/types/message.ts` | `DesignMessage` 消息类型 + `StreamEvent` |
+| `src/types/tool.ts` | `DesignTool` 工具接口 + `ToolRegistry` |
+| `src/types/context.ts` | `DesignContext` 上下文 + `DesignSession` |
+| `src/engine/DesignEngine.ts` | 设计会话管理引擎（骨架） |
+| `src/engine/ModelClient.ts` | 可配置模型客户端（占位，TODO 3 完善） |
 | `src/components/ui/` | shadcn/ui 基础组件（Button/Card/Input，Lovable 风格） |
+| `src/components/Sidebar.tsx` | 侧边栏（Lucide 图标、折叠/hover、会话列表、删除确认弹窗） |
+| `src/components/ChatPanel.tsx` | 聊天面板（消息列表、自动增长输入框、发送/停止） |
+| `src/components/PreviewPanel.tsx` | 预览面板（iframe、代码切换、工具栏） |
 | `.windsurf/workflows/neat-freak.md` | 洁癖级知识库同步 workflow |
 
 ## 设计原型

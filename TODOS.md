@@ -220,39 +220,39 @@
 ## 核心架构文件
 
 ### 智能体框架
-| 文件 | 说明 | 来源 |
-|------|------|------|
-| `src/engine/DesignEngine.ts` | 设计会话管理引擎 | 基于 Claude Code QueryEngine |
-| `src/engine/ModelClient.ts` | 可配置模型客户端 | 基于 Claude Code client.ts |
-| `src/types/message.ts` | 设计消息类型定义 | 基于 Claude Code message.ts |
-| `src/types/tool.ts` | 设计工具类型定义 | 基于 Claude Code Tool.ts |
-| `src/types/design-system.ts` | 设计系统类型定义 | 基于 Lovable |
-| `src/types/context.ts` | 设计上下文类型定义 | 基于 Claude Code ToolUseContext |
+| 文件 | 说明 | 来源 | 状态 |
+|------|------|------|------|
+| `src/engine/DesignEngine.ts` | 设计会话管理引擎 | 基于 Claude Code QueryEngine | ✅ 骨架 |
+| `src/engine/ModelClient.ts` | 可配置模型客户端 | 基于 Claude Code client.ts | ⏳ 占位，TODO 3 完善 |
+| `src/types/message.ts` | 设计消息类型定义 | 基于 Claude Code message.ts | ✅ 已交付 |
+| `src/types/tool.ts` | 设计工具类型定义 | 基于 Claude Code Tool.ts | ✅ 已交付 |
+| `src/types/context.ts` | 设计上下文类型定义 | 基于 Claude Code ToolUseContext | ✅ 已交付 |
+| `src/types/design-system.ts` | 设计系统类型定义 | 基于 Lovable | ✅ 已交付 |
 
 ### 工具系统
-| 文件 | 说明 | 来源 |
-|------|------|------|
-| `src/tools/GenerateUITool.ts` | UI 生成工具 | - |
-| `src/tools/ExportHTMLTool.ts` | HTML 导出工具 | - |
-| `src/tools/ApplyThemeTool.ts` | 主题应用工具 | - |
+| 文件 | 说明 | 来源 | 状态 |
+|------|------|------|------|
+| `src/tools/GenerateUITool.ts` | UI 生成工具 | - | ❌ 未实现，TODO 3.5 |
+| `src/tools/ExportHTMLTool.ts` | HTML 导出工具 | - | ❌ 未实现，TODO 7 |
+| `src/tools/ApplyThemeTool.ts` | 主题应用工具 | - | ❌ 未实现，TODO 7 |
 
 ### UI 组件（Lovable 风格）
-| 文件 | 说明 | 来源 |
-|------|------|------|
-| `src/components/ui/button.tsx` | 按钮组件（primary/ghost/cream/pill） | 基于 Lovable |
-| `src/components/ui/card.tsx` | 卡片组件 | 基于 Lovable |
-| `src/components/ui/input.tsx` | 输入框组件 | 基于 Lovable |
-| `src/components/Sidebar.tsx` | 侧边栏 | - |
-| `src/components/ChatPanel.tsx` | 聊天面板 | - |
-| `src/components/PreviewPanel.tsx` | 预览面板 | - |
+| 文件 | 说明 | 来源 | 状态 |
+|------|------|------|------|
+| `src/components/ui/button.tsx` | 按钮组件（primary/ghost/cream/pill） | 基于 Lovable | ✅ |
+| `src/components/ui/card.tsx` | 卡片组件 | 基于 Lovable | ✅ |
+| `src/components/ui/input.tsx` | 输入框组件 | 基于 Lovable | ✅ |
+| `src/components/Sidebar.tsx` | 侧边栏（Lucide 图标、删除确认弹窗） | - | ✅ |
+| `src/components/ChatPanel.tsx` | 聊天面板（消息列表、自动增长输入框） | - | ✅ |
+| `src/components/PreviewPanel.tsx` | 预览面板（iframe、代码切换、工具栏） | - | ✅ |
 
 ### 存储与配置
-| 文件 | 说明 | 来源 |
-|------|------|------|
-| `src/types/design-system.ts` | 设计系统类型 + 默认配置 | 基于 Lovable DEFAULT_DESIGN_SYSTEM |
-| `src/store/designStore.ts` | 设计状态管理 | - |
-| `src/store/modelConfigStore.ts` | 模型配置管理 | - |
-| `src/store/designSystemStore.ts` | 设计系统配置管理 | - |
+| 文件 | 说明 | 来源 | 状态 |
+|------|------|------|------|
+| `src/types/design-system.ts` | 设计系统类型 + 默认配置 | 基于 Lovable DEFAULT_DESIGN_SYSTEM | ✅ |
+| `src/store/designStore.ts` | 设计状态管理 | - | ❌ 未实现 |
+| `src/store/modelConfigStore.ts` | 模型配置管理 | - | ❌ 未实现 |
+| `src/store/designSystemStore.ts` | 设计系统配置管理 | - | ❌ 未实现 |
 
 ---
 
