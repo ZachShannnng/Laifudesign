@@ -1,0 +1,75 @@
+@import "tailwindcss";
+
+@theme {
+  /* Lovable Design System - Color Palette */
+  --color-cream: #f7f4ed;
+  --color-charcoal: #1c1c1c;
+  --color-off-white: #fcfbf8;
+  --color-border: #eceae4;
+  --color-muted-text: #5f5f5d;
+  --color-charcoal-83: rgba(28, 28, 28, 0.83);
+  --color-charcoal-40: rgba(28, 28, 28, 0.4);
+  --color-charcoal-12: rgba(28, 28, 28, 0.12);
+  --color-charcoal-08: rgba(28, 28, 28, 0.08);
+  --color-charcoal-04: rgba(28, 28, 28, 0.04);
+  --color-charcoal-03: rgba(28, 28, 28, 0.03);
+
+  /* shadcn/ui CSS variable mapping (light mode) */
+  --color-background: var(--color-cream);
+  --color-foreground: var(--color-charcoal);
+  --color-card: var(--color-cream);
+  --color-card-foreground: var(--color-charcoal);
+  --color-popover: var(--color-off-white);
+  --color-popover-foreground: var(--color-charcoal);
+  --color-primary: var(--color-charcoal);
+  --color-primary-foreground: var(--color-off-white);
+  --color-muted: var(--color-border);
+  --color-muted-foreground: #5f5f5d;
+  --color-secondary: var(--color-border);
+  --color-secondary-foreground: var(--color-charcoal);
+  --color-accent: var(--color-border);
+  --color-accent-foreground: var(--color-charcoal);
+  --color-destructive: #b91c1c;
+  --color-destructive-foreground: var(--color-off-white);
+  --color-input: #eceae4;
+  --color-ring: rgba(59, 130, 246, 0.5);
+
+  /* Radius scale (Lovable) */
+  --radius-4: 4px;
+  --radius-6: 6px;
+  --radius-8: 8px;
+  --radius-12: 12px;
+  --radius-16: 16px;
+  --radius-full: 9999px;
+
+  /* Sidebar dimensions (from v4 prototype) */
+  --sidebar-width: 256px;
+  --sidebar-collapsed: 52px;
+  --chat-width: 380px;
+
+  /* Font family */
+  --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: ui-monospace, Consolas, monospace;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: var(--font-sans);
+  background: var(--color-cream);
+  color: var(--color-charcoal);
+  height: 100vh;
+  overflow: hidden;
+  font-size: 13px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#root {
+  height: 100vh;
+}
