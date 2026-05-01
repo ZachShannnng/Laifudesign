@@ -87,13 +87,23 @@ These guidelines are working if: fewer unnecessary changes in diffs, fewer rewri
 
 Laifu Design 是一个 UI 设计智能体，用户通过自然语言对话生成符合设计规范的页面。基于 Claude Code 架构提取的智能体框架，使用 Lovable 设计系统作为默认 UI 风格。
 
+**当前进度**：TODO 1 ✅ TODO 1.2 ✅（项目初始化 + Lovable 设计系统配置完成），下一步 TODO 1.5（智能体框架核心）。
+
+**仓库**：https://github.com/ZachShannnng/Laifudesign
+
 ## 技术栈
 
-- React + Vite
-- shadcn/ui + TailwindCSS
+- React + Vite + TypeScript
+- TailwindCSS v4（CSS-first `@theme` 配置，无 `tailwind.config.js`）
+- shadcn/ui（new-york 风格，手动集成，路径别名 `@/` → `./src/`）
 - Lovable 设计系统（暖色调奶油背景 #f7f4ed）
-- TypeScript + Zod
 - 可配置 ModelClient（Anthropic / OpenAI / 智谱 / 自定义）
+
+### 设计系统配色要点
+
+- `--color-cream` / `--color-charcoal` / `--color-border` / `--color-off-white` / `--color-muted-text`
+- shadcn/ui 语义变量已映射：`--color-muted`（背景色=border色），`--color-muted-foreground`（文字色=#5f5f5d）
+- 组件中文字色用 `text-muted-foreground` 或 `text-muted-text`，**不用** `text-muted`
 
 ## 关键文件
 
@@ -104,6 +114,9 @@ Laifu Design 是一个 UI 设计智能体，用户通过自然语言对话生成
 | `docs/mvp-plan-20260429.md` | MVP 开发计划 |
 | `TODOS.md` | 任务列表 |
 | `docs/lovable-integration.md` | Lovable 集成文档 |
+| `src/index.css` | TailwindCSS `@theme` + Lovable 配色变量 |
+| `src/types/design-system.ts` | `DesignSystemConfig` 类型 + `DEFAULT_DESIGN_SYSTEM` 常量 |
+| `src/components/ui/` | shadcn/ui 基础组件（Button/Card/Input，Lovable 风格） |
 | `.windsurf/workflows/neat-freak.md` | 洁癖级知识库同步 workflow |
 
 ## 设计原型

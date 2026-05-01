@@ -33,3 +33,4 @@ docs/references/
 *.njsproj
 *.sln
 *.sw?
+.gstack/

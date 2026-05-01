@@ -42,14 +42,16 @@
   --radius-16: 16px;
   --radius-full: 9999px;
 
-  /* Sidebar dimensions (from v4 prototype) */
-  --sidebar-width: 256px;
-  --sidebar-collapsed: 52px;
-  --chat-width: 380px;
-
   /* Font family */
   --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
   --font-mono: ui-monospace, Consolas, monospace;
+}
+
+/* Layout custom properties (not in @theme — Tailwind v4 only processes namespaced vars) */
+:root {
+  --sidebar-width: 256px;
+  --sidebar-collapsed: 52px;
+  --chat-width: 380px;
 }
 
 * {
@@ -73,3 +75,11 @@ body {
 #root {
   height: 100vh;
 }
+
+/* Scrollbar — matching v4 prototype */
+::-webkit-scrollbar { width: 3px; }
+::-webkit-scrollbar-thumb { background: var(--color-charcoal-12); border-radius: 2px; }
+
+/* Sidebar session list scrollbar */
+aside ::-webkit-scrollbar { width: 2px; }
+aside ::-webkit-scrollbar-thumb { background: var(--color-charcoal-12); border-radius: 1px; }

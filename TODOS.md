@@ -4,50 +4,39 @@
 
 ### W1: 项目初始化 + 智能体框架基础
 
-**TODO 1: 项目初始化**
-- **What:** 创建 React + Vite 项目，配置 TailwindCSS 和 shadcn/ui
-- **Why:** MVP 开发的基础框架
-- **Pros:** 标准化技术栈，shadcn/ui 提供现成组件
-- **Cons:** 初始设置时间 ~1 小时
-- **Context:** 技术栈已在 MVP 方案中确定
+**TODO 1: 项目初始化** ✅ 已完成 (2026-05-01)
+- **What:** 创建 React + Vite 项目，配置 TailwindCSS v4 和 shadcn/ui
+- **Delivered:** Vite 项目 + TailwindCSS v4 @theme 配置 + shadcn/ui 手动集成 + 三栏布局骨架 + Git 仓库初始化
 - **Effort:** S (~2 小时)
 - **Priority:** P1
 - **Depends on:** 无
 
-**TODO 1.2: Lovable 设计系统配置** ⭐ 新增
+**TODO 1.2: Lovable 设计系统配置** ✅ 已完成 (2026-05-01)
 - **What:** 配置 Lovable 设计系统到项目
   - TailwindCSS 配置（颜色、间距、圆角、阴影）
-  - 字体配置（Camera Plain Variable + Inter fallback）
+  - 字体配置（Inter CDN + Camera Plain Variable fallback）
   - 基础组件（Button、Card、Input）
   - 设计系统类型定义（DesignSystemConfig）
-- **Why:** Laifu Design 采用 Lovable 作为 UI 框架
-- **Pros:** 温暖、克制、人性化的设计风格，符合产品定位
-- **Cons:** 需要自定义 Tailwind 配置和 shadcn/ui 组件
-- **Context:** 参考 `lovable-integration.md` 和 `DESIGN.md`
+- **Delivered:** `src/index.css` @theme 配色 + `src/components/ui/` 三个组件 + `src/types/design-system.ts` 类型定义
 - **Effort:** S (~1 天)
 - **Priority:** P1
 - **Depends on:** TODO 1
 
-**TODO 1.5: 设计智能体框架核心** ⭐ 新增
+**TODO 1.5: 设计智能体框架核心** ✅ 已完成 (2026-05-01)
 - **What:** 基于 Claude Code 架构，实现 DesignEngine 和 ModelClient
   - `src/engine/DesignEngine.ts` - 设计会话管理
-  - `src/engine/ModelClient.ts` - 可配置模型客户端
-  - `src/types/message.ts` - 设计消息类型定义
-  - `src/types/tool.ts` - 设计工具类型定义
-- **Why:** 核心智能体能力，不是简单的 API 调用包装
-- **Pros:** 模型无关，可扩展，基于验证过的架构
-- **Cons:** 抽象层增加初始复杂度
-- **Context:** 从 Claude Code 提取的核心架构
+  - `src/engine/ModelClient.ts` - 可配置模型客户端（占位，TODO 3 完善）
+  - `src/types/message.ts` - 设计消息类型 + StreamEvent
+  - `src/types/tool.ts` - 设计工具类型 + ToolRegistry
+  - `src/types/context.ts` - 设计上下文 + DesignSession
+- **Delivered:** 完整引擎骨架（会话管理、流式提交、工具执行、系统提示词构建、中断控制）
 - **Effort:** M (~1-2 天)
 - **Priority:** P1
 - **Depends on:** TODO 1
 
-**TODO 2: 基础 UI 布局**
-- **What:** 实现 Chat UI（输入框 + 发送按钮）+ Preview 区域（iframe）
-- **Why:** 用户交互的基础界面
-- **Pros:** 完成后可见的 UI 框架
-- **Cons:** 需要 1-2 天开发
-- **Context:** MVP 范围的核心界面，使用 Lovable 风格组件
+**TODO 2: 基础 UI 布局** ✅ 已完成 (2026-05-01)
+- **What:** 实现 Chat UI（输入框 + 发送按钮）+ Preview 区域（iframe）+ 侧边栏折叠
+- **Delivered:** Sidebar（折叠/hover切换/会话列表/菜单）、ChatPanel（消息列表/自动增长输入框/发送停止按钮）、PreviewPanel（iframe/代码切换/加载状态/空状态）、App.tsx（三栏联动/设置面板/设计系统面板占位）
 - **Effort:** M (~1-2 天)
 - **Priority:** P1
 - **Depends on:** TODO 1, TODO 1.2
@@ -200,25 +189,6 @@
 - **Effort:** S (~0.5 天)
 - **Priority:** P1
 - **Depends on:** TODO 4
-- **What:** 测试完整流程
-  - 配置模型 → 输入需求 → 工具调用 → 流式预览 → 导出
-- **Why:** 确保智能体框架完整可用
-- **Pros:** 发现集成问题
-- **Cons:** 手动测试，时间不确定
-- **Context:** MVP 验证阶段
-- **Effort:** M (~2-3 天)
-- **Priority:** P1
-- **Depends on:** TODO 7, TODO 8
-
-**TODO 10: 调试与优化**
-- **What:** 修复发现的问题，优化渲染性能
-- **Why:** 确保用户体验可接受
-- **Pros:** 提升质量
-- **Cons:** 时间可能延长
-- **Context:** 交付前的最后打磨
-- **Effort:** M (~1-2 天)
-- **Priority:** P1
-- **Depends on:** TODO 9
 
 ---
 
@@ -269,18 +239,17 @@
 ### UI 组件（Lovable 风格）
 | 文件 | 说明 | 来源 |
 |------|------|------|
-| `src/ui/components/Button.tsx` | 按钮组件 | 基于 Lovable |
-| `src/ui/components/Card.tsx` | 卡片组件 | 基于 Lovable |
-| `src/ui/components/Input.tsx` | 输入框组件 | 基于 Lovable |
-| `src/ui/ChatPanel.tsx` | 聊天面板 | - |
-| `src/ui/PreviewPanel.tsx` | 预览面板 | - |
-| `src/ui/SettingsPanel.tsx` | 设置面板（模型配置） | - |
-| `src/ui/DesignSystemPanel.tsx` | 设计系统配置面板 | - |
+| `src/components/ui/button.tsx` | 按钮组件（primary/ghost/cream/pill） | 基于 Lovable |
+| `src/components/ui/card.tsx` | 卡片组件 | 基于 Lovable |
+| `src/components/ui/input.tsx` | 输入框组件 | 基于 Lovable |
+| `src/components/Sidebar.tsx` | 侧边栏 | - |
+| `src/components/ChatPanel.tsx` | 聊天面板 | - |
+| `src/components/PreviewPanel.tsx` | 预览面板 | - |
 
 ### 存储与配置
 | 文件 | 说明 | 来源 |
 |------|------|------|
-| `src/lib/design-system.ts` | 设计系统默认配置 | 基于 Lovable DEFAULT_DESIGN_SYSTEM |
+| `src/types/design-system.ts` | 设计系统类型 + 默认配置 | 基于 Lovable DEFAULT_DESIGN_SYSTEM |
 | `src/store/designStore.ts` | 设计状态管理 | - |
 | `src/store/modelConfigStore.ts` | 模型配置管理 | - |
 | `src/store/designSystemStore.ts` | 设计系统配置管理 | - |
