@@ -3,34 +3,130 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "description": "AI-powered UI design tool for generating beautiful interfaces",
+  "author": "ZachShannnng",
+  "main": "dist/main/main.js",
   "scripts": {
     "dev": "vite",
+    "dev:app": "npm run build:main && (npm run dev & sleep 2 && npm run dev:electron)",
+    "dev:electron": "NODE_ENV=development electron .",
     "build": "tsc -b && vite build",
+    "build:main": "tsc -p tsconfig.main.json && cp main/preload.js dist/main/preload.js",
+    "build:renderer": "vite build",
+    "build:all": "npm run build:main && npm run build:renderer",
+    "pack": "npm run build:all && electron-builder",
+    "pack:dir": "npm run build:all && electron-builder --dir",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "build": {
+    "appId": "com.laifu.design",
+    "productName": "Laifu Design",
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
+    "files": [
+      "dist/**/*",
+      "skills/**/*",
+      "design-systems/**/*",
+      "assets/**/*",
+      "node_modules/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "skills",
+        "to": "skills"
+      },
+      {
+        "from": "design-systems",
+        "to": "design-systems"
+      },
+      {
+        "from": "assets",
+        "to": "assets"
+      },
+      {
+        "from": "node_modules/sql.js/dist",
+        "to": "sql.js",
+        "filter": [
+          "sql-wasm.wasm"
+        ]
+      }
+    ],
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ],
+      "category": "public.app-category.design",
+      "hardenedRuntime": true
+    },
+    "dmg": {
+      "contents": [
+        {
+          "x": 130,
+          "y": 220
+        },
+        {
+          "x": 410,
+          "y": 220,
+          "type": "link",
+          "path": "/Applications"
+        }
+      ]
+    }
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.2.4",
+    "@types/sql.js": "^1.4.11",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "cors": "^2.8.6",
+    "express": "^4.19.2",
     "lucide-react": "^1.14.0",
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
+    "sql.js": "^1.14.1",
     "tailwind-merge": "^3.5.0",
-    "tailwindcss": "^4.2.4"
+    "tailwindcss": "^4.2.4",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^4.17.21",
     "@types/node": "^24.12.2",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.1",
+    "electron": "^42.0.0",
+    "electron-builder": "^26.8.1",
     "eslint": "^10.2.1",
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.2",
     "globals": "^17.5.0",
+    "jsdom": "^29.1.1",
     "typescript": "~6.0.2",
     "typescript-eslint": "^8.58.2",
-    "vite": "^8.0.10"
+    "vite": "^8.0.10",
+    "vitest": "^4.1.5"
   }
 }

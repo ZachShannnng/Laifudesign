@@ -403,12 +403,17 @@ export const DEFAULT_DESIGN_SYSTEM: LaifuDesignSystem = {
 
 ### 4.4 ModelClient
 
+> **2026-05-01 审查决策**：MVP 采用统一 OpenAI 兼容 SSE 客户端，1 个客户端覆盖所有 provider。
+> 预设只是 apiUrl/apiKey/model 的快捷填充，不需要 4 个独立 provider 文件。
+> apiUrl 含完整路径（如 `/v1/chat/completions`），支持中转站。
+> 后续如 Anthropic 兼容端点 tool_use 不完整，补原生 Messages API（TODO 7.5）。
+
 ```typescript
 // src/engine/ModelClient.ts
 export type ProviderType = 'anthropic' | 'openai' | 'zhipu' | 'custom'
 
 export interface ModelConfig {
-  apiUrl: string
+  apiUrl: string       // 含完整路径，如 https://api.anthropic.com/v1/chat/completions
   apiKey: string
   model: string
   provider: ProviderType
@@ -417,37 +422,34 @@ export interface ModelConfig {
 }
 
 export interface StreamChunk {
-  type: 'content' | 'tool_use' | 'done'
+  type: 'text' | 'tool_use' | 'done' | 'error'
   content?: string
   toolName?: string
   toolInput?: Record<string, unknown>
+  error?: string
 }
 
-export class ModelClient {
-  constructor(private config: ModelConfig) {}
-
-  async *stream(messages: DesignMessage[]): AsyncIterable<StreamChunk> {
-    // 根据配置调用不同的 API
-    // 统一返回流式数据
-  }
-
-  static createFromPreset(preset: 'anthropic' | 'openai' | 'zhipu' | 'custom', apiKey: string, model?: string): ModelClient {
-    const presets = {
-      anthropic: { apiUrl: 'https://api.anthropic.com/v1', model: 'claude-sonnet-4-20250514' },
-      openai: { apiUrl: 'https://api.openai.com/v1', model: 'gpt-4o' },
-      zhipu: { apiUrl: 'https://open.bigmodel.cn/api/paas/v4', model: 'glm-4' },
-      custom: { apiUrl: '', model: '' },
-    }
-
-    const preset = presets[preset]
-    return new ModelClient({
-      ...preset,
-      apiKey,
-      model: model || preset.model,
-      provider: preset,
-    })
-  }
+// 预设配置模板（快捷填充，非独立实现）
+export const MODEL_PRESETS: Record<ProviderType, Omit<ModelConfig, 'apiKey'>> = {
+  anthropic: { provider: 'anthropic', apiUrl: 'https://api.anthropic.com/v1/chat/completions', model: 'claude-sonnet-4-20250514', maxTokens: 8192, temperature: 0.7 },
+  openai: { provider: 'openai', apiUrl: 'https://api.openai.com/v1/chat/completions', model: 'gpt-4o', maxTokens: 8192, temperature: 0.7 },
+  zhipu: { provider: 'zhipu', apiUrl: 'https://open.bigmodel.cn/api/paas/v4/chat/completions', model: 'glm-4', maxTokens: 8192, temperature: 0.7 },
+  custom: { provider: 'custom', apiUrl: '', model: '', maxTokens: 8192, temperature: 0.7 },
 }
+
+export interface ModelClient {
+  stream(messages: Array<{ role: string; content: string }>, options?: { systemPrompt?: string; tools?: Array<{ name: string; description: string; input_schema: unknown }>; abortSignal?: AbortSignal }): AsyncIterable<StreamChunk>
+  getConfig(): ModelConfig
+  updateConfig(config: Partial<ModelConfig>): void
+}
+
+// 统一 OpenAI 兼容 SSE 客户端实现
+// src/engine/openai-compatible.ts
+// - 构建 OpenAI 格式请求体（含 tools 定义转换）
+// - fetch + ReadableStream 解析 SSE
+// - 解析 choices[0].delta 中的 content / tool_calls
+// - yield 统一的 StreamChunk
+// - SSE 格式异常行 try-catch 保护
 ```
 
 ---

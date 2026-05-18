@@ -1,214 +1,619 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import Sidebar from './components/Sidebar'
 import ChatPanel from './components/ChatPanel'
 import PreviewPanel from './components/PreviewPanel'
+import SettingsPanel from './components/SettingsPanel'
+import NewProjectPanel from './components/NewProjectPanel'
+import FileWorkspace from './components/FileWorkspace'
 import type { DesignMessage } from '@/types/message'
+import { useModelConfig } from '@/store/modelConfigStore'
+import { createModelClient } from '@/engine/ModelClient'
+import type { QuestionForm, QuestionFormAnswers } from './artifacts/question-form'
+import { parseQuestionForm } from './artifacts/artifact-parser'
 
-type OverlayPanel = 'none' | 'settings' | 'design'
+type OverlayPanel = 'none' | 'settings' | 'design' | 'new-project'
 
-interface Session {
+/** 项目接口 */
+interface Project {
   id: string
-  title: string
-  messages: DesignMessage[]
-  htmlContent: string
+  name: string
+  skillId?: string
+  designSystemId?: string
+  metadata?: Record<string, unknown>
+  createdAt: number
+  updatedAt: number
+}
+
+/** 对话接口 */
+interface Conversation {
+  id: string
+  projectId: string
+  title?: string
+  createdAt: number
+  updatedAt: number
+}
+
+/** 消息接口（API 返回） */
+interface ApiMessage {
+  id: string
+  conversationId: string
+  role: 'user' | 'assistant' | 'system'
+  content: string
+  toolName?: string
+  toolInput?: string
+  toolResult?: string
+  createdAt: number
 }
 
 function App() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [overlay, setOverlay] = useState<OverlayPanel>('none')
-  const [sessions, setSessions] = useState<Session[]>([
-    {
-      id: '1',
-      title: '登录页设计',
-      messages: [
-        { role: 'user', content: '做一个登录页面，包含邮箱输入和密码字段', timestamp: new Date() },
-        { role: 'assistant', type: 'tool_use', toolName: 'GenerateUITool', toolInput: { component: 'login', description: '生成登录页面' }, timestamp: new Date() },
-        { role: 'tool', toolName: 'GenerateUITool', result: { output: 'login.html generated', metadata: { isError: false } }, isError: false, timestamp: new Date() },
-        { role: 'assistant', content: '已生成登录页面，包含邮箱输入框、密码字段和登录按钮，采用 Lovable 暖色风格。', timestamp: new Date() },
-        { role: 'user', content: '把登录按钮改成圆角胶囊样式，颜色用深色', timestamp: new Date() },
-        { role: 'assistant', type: 'tool_use', toolName: 'GenerateUITool', toolInput: { component: 'login', modification: 'button-style', description: '修改按钮样式' }, timestamp: new Date() },
-        { role: 'tool', toolName: 'GenerateUITool', result: { output: 'button modified', metadata: { isError: false } }, isError: false, timestamp: new Date() },
-        { role: 'assistant', content: '已将登录按钮修改为胶囊圆角样式，背景色改为 #1c1c1c。', timestamp: new Date() },
-      ],
-      htmlContent: '',
-    },
-    { id: '2', title: '仪表盘页面', messages: [], htmlContent: '' },
-    { id: '3', title: '落地页 v2', messages: [], htmlContent: '' },
-    { id: '4', title: '注册表单', messages: [], htmlContent: '' },
-    { id: '5', title: '数据卡片组件', messages: [], htmlContent: '' },
-  ])
-  const [activeSessionId, setActiveSessionId] = useState<string>('1')
-  const [isStreaming, setIsStreaming] = useState(false)
 
-  const activeSession = sessions.find((s) => s.id === activeSessionId)
-  const modelLabel = 'Sonnet 4'
+  // 项目和对话状态
+  const [projects, setProjects] = useState<Project[]>([])
+  const [conversations, setConversations] = useState<Conversation[]>([])
+  const [activeProjectId, setActiveProjectId] = useState<string | null>(null)
+  const [activeConversationId, setActiveConversationId] = useState<string | null>(null)
+  const [messages, setMessages] = useState<ApiMessage[]>([])
+  const [htmlContent, setHtmlContent] = useState<string>('')
+
+  // UI 状态
+  const [isStreaming, setIsStreaming] = useState(false)
+  const [showNewProject, setShowNewProject] = useState(false)
+  const [showFileWorkspace, setShowFileWorkspace] = useState(false)
+  const [questionForm, setQuestionForm] = useState<QuestionForm | null>(null)
+
+  // 设计系统预览状态
+  const [designSystemPreview, setDesignSystemPreview] = useState<string>('')
+  const [designSystemContent, setDesignSystemContent] = useState<string>('')
+  const [loadingPreview, setLoadingPreview] = useState(false)
+
+  // 模型配置
+  const { config: modelConfig, updateConfig } = useModelConfig()
+  const abortControllerRef = useRef<AbortController | null>(null)
+
+  // API 基础 URL
+  const API_URL = 'http://127.0.0.1:7456'
+
+  // 加载项目列表
+  useEffect(() => {
+    fetchProjects()
+  }, [])
+
+  // 加载对话列表
+  useEffect(() => {
+    if (activeProjectId) {
+      setActiveConversationId(null)
+      setMessages([])
+      setHtmlContent('')
+      setQuestionForm(null)
+      fetchConversations(activeProjectId)
+    } else {
+      setConversations([])
+      setActiveConversationId(null)
+    }
+  }, [activeProjectId])
+
+  // 加载消息
+  useEffect(() => {
+    if (activeConversationId) {
+      fetchMessages(activeConversationId)
+    } else {
+      setMessages([])
+    }
+  }, [activeConversationId])
+
+  const fetchProjects = async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/projects`)
+      const data = await res.json()
+      if (data.ok) {
+        setProjects(data.projects)
+      }
+    } catch (err) {
+      console.error('Failed to fetch projects:', err)
+    }
+  }
+
+  const fetchConversations = async (projectId: string) => {
+    try {
+      const res = await fetch(`${API_URL}/api/projects/${projectId}/conversations`)
+      const data = await res.json()
+      if (data.ok) {
+        const nextConversations = data.conversations
+        setConversations(nextConversations)
+        setActiveConversationId((current) => {
+          if (current && nextConversations.some((c: Conversation) => c.id === current)) {
+            return current
+          }
+          return nextConversations[0]?.id ?? null
+        })
+      }
+    } catch (err) {
+      console.error('Failed to fetch conversations:', err)
+    }
+  }
+
+  const fetchMessages = async (conversationId: string) => {
+    try {
+      const res = await fetch(`${API_URL}/api/conversations/${conversationId}/messages`)
+      const data = await res.json()
+      if (data.ok) {
+        setMessages(data.messages)
+      }
+    } catch (err) {
+      console.error('Failed to fetch messages:', err)
+    }
+  }
+
+  // 加载设计系统预览
+  useEffect(() => {
+    if (overlay === 'design') {
+      loadDesignSystemPreview('artistic')
+    }
+  }, [overlay])
+
+  const loadDesignSystemPreview = async (designSystemId: string) => {
+    setLoadingPreview(true)
+    try {
+      // 并行加载预览和内容
+      const [previewRes, contentRes] = await Promise.all([
+        fetch(`${API_URL}/api/design-systems/${designSystemId}/preview`),
+        fetch(`${API_URL}/api/design-systems/${designSystemId}/content`),
+      ])
+
+      if (previewRes.ok) {
+        const previewHtml = await previewRes.text()
+        setDesignSystemPreview(previewHtml)
+      }
+
+      if (contentRes.ok) {
+        const data = await contentRes.json()
+        if (data.ok) {
+          setDesignSystemContent(data.content)
+        }
+      }
+    } catch (err) {
+      console.error('Failed to load design system preview:', err)
+    } finally {
+      setLoadingPreview(false)
+    }
+  }
 
   const handleToggleSidebar = useCallback(() => {
     setSidebarCollapsed((v) => !v)
   }, [])
 
-  const handleNewChat = useCallback(() => {
-    const id = crypto.randomUUID()
-    const newSession: Session = { id, title: '新对话', messages: [], htmlContent: '' }
-    setSessions((prev) => [newSession, ...prev])
-    setActiveSessionId(id)
+  const handleNewProject = useCallback(() => {
+    setShowNewProject(true)
     setOverlay('none')
   }, [])
 
-  const handleSelectSession = useCallback((id: string) => {
-    setActiveSessionId(id)
+  const handleCreateProject = async (data: {
+    name: string
+    skillId: string
+    designSystemId: string
+    platform: string
+  }) => {
+    try {
+      const res = await fetch(`${API_URL}/api/projects`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: data.name,
+          skillId: data.skillId,
+          designSystemId: data.designSystemId,
+          metadata: { platform: data.platform },
+        }),
+      })
+      const result = await res.json()
+      if (result.ok) {
+        setActiveProjectId(result.project.id)
+        setActiveConversationId(null)
+        setMessages([])
+        setHtmlContent('')
+        setQuestionForm(null)
+        setShowNewProject(false)
+        fetchProjects()
+        // 自动创建第一个对话
+        handleNewConversation(result.project.id)
+      } else {
+        alert('创建项目失败: ' + result.error)
+      }
+    } catch (err) {
+      console.error('Failed to create project:', err)
+      alert('创建项目失败')
+    }
+  }
+
+  const handleNewConversation = async (projectId?: string) => {
+    const pid = projectId || activeProjectId
+    if (!pid) return
+
+    try {
+      const res = await fetch(`${API_URL}/api/projects/${pid}/conversations`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      })
+      const data = await res.json()
+      if (data.ok) {
+        setActiveConversationId(data.conversation.id)
+        fetchConversations(pid)
+      }
+    } catch (err) {
+      console.error('Failed to create conversation:', err)
+    }
+  }
+
+  const handleSelectProject = useCallback((id: string) => {
+    if (id === activeProjectId) return
+    setActiveProjectId(id)
+    setOverlay('none')
+  }, [activeProjectId])
+
+  const handleDeleteProject = useCallback(async (id: string) => {
+    if (!confirm('确定要删除这个项目吗？项目内的会话和文件也会被删除。')) return
+
+    try {
+      const res = await fetch(`${API_URL}/api/projects/${id}`, {
+        method: 'DELETE',
+      })
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      setProjects((prev) => prev.filter((p) => p.id !== id))
+      if (activeProjectId === id) {
+        setActiveProjectId(null)
+        setActiveConversationId(null)
+        setConversations([])
+        setMessages([])
+        setHtmlContent('')
+        setQuestionForm(null)
+      }
+    } catch (err) {
+      console.error('Failed to delete project:', err)
+      alert('删除项目失败')
+    }
+  }, [activeProjectId])
+
+  const handleSelectConversation = useCallback((id: string) => {
+    setActiveConversationId(id)
     setOverlay('none')
   }, [])
 
-  const handleDeleteSession = useCallback((id: string) => {
-    setSessions((prev) => prev.filter((s) => s.id !== id))
-    setActiveSessionId((prev) => (prev === id ? null : prev))
-  }, [])
+  const handleDeleteConversation = useCallback(async (id: string) => {
+    if (!confirm('确定要删除这个对话吗？')) return
+
+    try {
+      const res = await fetch(`${API_URL}/api/conversations/${id}`, {
+        method: 'DELETE',
+      })
+      if (res.ok) {
+        if (activeConversationId === id) {
+          setActiveConversationId(null)
+        }
+        if (activeProjectId) {
+          fetchConversations(activeProjectId)
+        }
+      }
+    } catch (err) {
+      console.error('Failed to delete conversation:', err)
+    }
+  }, [activeConversationId, activeProjectId])
 
   const handleSend = useCallback(
-    (text: string) => {
-      if (!text.trim() || isStreaming) return
-
-      const userMessage: DesignMessage = {
-        role: 'user',
-        content: text,
-        timestamp: new Date(),
+    async (text: string, formAnswers?: QuestionFormAnswers) => {
+      if (!text.trim() && !formAnswers) return
+      if (!activeProjectId) {
+        setShowNewProject(true)
+        return
+      }
+      if (!activeConversationId) {
+        // 如果没有对话，创建一个
+        await handleNewConversation()
+        return
       }
 
-      setSessions((prev) =>
-        prev.map((s) =>
-          s.id === activeSessionId
-            ? {
-                ...s,
-                title: s.messages.length === 0 ? text.slice(0, 20) : s.title,
-                messages: [...s.messages, userMessage],
-              }
-            : s
-        )
-      )
-      setIsStreaming(true)
+      // 检查模型配置
+      if (!modelConfig.apiUrl || !modelConfig.apiKey || !modelConfig.model) {
+        alert('请先在设置中配置 API')
+        return
+      }
 
-      // TODO: 接入 DesignEngine 流式调用
-      // 当前为模拟：2 秒后返回占位响应
-      setTimeout(() => {
-        const assistantMessage: DesignMessage = {
-          role: 'assistant',
-          content: `收到你的需求："${text}"。DesignEngine 尚未接入，完成 TODO 3 后可实现真正的流式生成。`,
-          timestamp: new Date(),
+      setIsStreaming(true)
+      abortControllerRef.current = new AbortController()
+
+      // 格式化消息内容
+      let content = text
+      if (formAnswers) {
+        const answersText = Object.entries(formAnswers)
+          .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(', ') : v}`)
+          .join('\n')
+        content = text + '\n\n' + answersText
+      }
+
+      // 添加用户消息到 UI
+      const userMsg: ApiMessage = {
+        id: crypto.randomUUID(),
+        conversationId: activeConversationId,
+        role: 'user',
+        content,
+        createdAt: Date.now(),
+      }
+      setMessages((prev) => [...prev, userMsg])
+
+      try {
+        // 发送 SSE 请求
+        const response = await fetch(`${API_URL}/api/chat`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            conversationId: activeConversationId,
+            messages: messages.map((m) => ({
+              role: m.role,
+              content: m.content,
+            })).concat([{ role: 'user', content }]),
+            model: {
+              apiUrl: modelConfig.apiUrl,
+              apiKey: modelConfig.apiKey,
+              model: modelConfig.model,
+            },
+            projectId: activeProjectId,
+            saveToDb: true,
+          }),
+          signal: abortControllerRef.current.signal,
+        })
+
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`)
         }
-        setSessions((prev) =>
-          prev.map((s) =>
-            s.id === activeSessionId
-              ? { ...s, messages: [...s.messages, assistantMessage] }
-              : s
-          )
-        )
+
+        // 读取 SSE 流
+        const reader = response.body?.getReader()
+        if (!reader) throw new Error('No response body')
+
+        const decoder = new TextDecoder()
+        let buffer = ''
+        let assistantContent = ''
+
+        while (true) {
+          const { done, value } = await reader.read()
+          if (done) break
+
+          buffer += decoder.decode(value, { stream: true })
+          const lines = buffer.split('\n')
+          buffer = lines.pop() || ''
+
+          for (const line of lines) {
+            if (!line.startsWith('data: ')) continue
+
+            const data = line.slice(6)
+            if (data === '[DONE]') break
+
+            let parsed: any
+            try {
+              parsed = JSON.parse(data)
+            } catch {
+              continue
+            }
+
+            if (parsed.type === 'text') {
+              assistantContent += parsed.content
+              setMessages((prev) => {
+                const msgs = [...prev]
+                const last = msgs[msgs.length - 1]
+                if (last?.role === 'assistant') {
+                  msgs[msgs.length - 1] = { ...last, content: assistantContent }
+                } else {
+                  msgs.push({
+                    id: crypto.randomUUID(),
+                    conversationId: activeConversationId!,
+                    role: 'assistant',
+                    content: assistantContent,
+                    createdAt: Date.now(),
+                  })
+                }
+                return msgs
+              })
+            } else if (parsed.type === 'done') {
+              break
+            } else if (parsed.type === 'artifact' && parsed.artifact?.html) {
+              setHtmlContent(parsed.artifact.html)
+            } else if (parsed.type === 'question_form' && parsed.raw) {
+              const form = parseQuestionForm(parsed.raw)
+              if (form) {
+                setQuestionForm(form)
+              }
+            } else if (parsed.type === 'error') {
+              throw new Error(parsed.error)
+            }
+          }
+        }
+      } catch (err) {
+        if ((err as Error).name !== 'AbortError') {
+          console.error('Chat error:', err)
+          alert('发送失败: ' + (err as Error).message)
+        }
+      } finally {
         setIsStreaming(false)
-      }, 1500)
+        abortControllerRef.current = null
+        // 重新加载消息
+        if (activeConversationId) {
+          fetchMessages(activeConversationId)
+        }
+      }
     },
-    [activeSessionId, isStreaming]
+    [activeConversationId, messages, modelConfig, activeProjectId]
   )
 
   const handleAbort = useCallback(() => {
+    abortControllerRef.current?.abort()
     setIsStreaming(false)
   }, [])
 
   const showMainContent = overlay === 'none'
 
+  // 转换消息格式给 ChatPanel
+  const designMessages: DesignMessage[] = messages.map((m): DesignMessage => {
+    const role = m.role === 'system' ? 'assistant' : m.role as 'user' | 'assistant'
+    if (role === 'user') {
+      return {
+        role: 'user',
+        content: m.content,
+        timestamp: new Date(m.createdAt),
+      }
+    } else {
+      return {
+        role: 'assistant',
+        content: m.content,
+        timestamp: new Date(m.createdAt),
+      }
+    }
+  })
+
+  const activeProject = projects.find((p) => p.id === activeProjectId)
+  const activeConversation = conversations.find((c) => c.id === activeConversationId)
+  const projectMeta = activeProject
+    ? [
+        activeProject.skillId,
+        activeProject.designSystemId,
+        typeof activeProject.metadata?.platform === 'string' ? activeProject.metadata.platform : null,
+      ].filter(Boolean).join(' · ')
+    : ''
+  const hasActiveWorkspace = Boolean(activeProjectId && activeConversationId)
+
   return (
     <div className="flex h-screen min-w-[1024px]">
       <Sidebar
         collapsed={sidebarCollapsed}
+        overlay={overlay}
         onToggle={handleToggleSidebar}
-        sessions={sessions.map((s) => ({ id: s.id, title: s.title }))}
-        activeSessionId={activeSessionId}
-        onSelectSession={handleSelectSession}
-        onNewChat={handleNewChat}
+        projects={projects.map((p) => ({
+          id: p.id,
+          name: p.name || '未命名项目',
+          meta: [
+            p.skillId,
+            p.designSystemId,
+            typeof p.metadata?.platform === 'string' ? p.metadata.platform : null,
+          ].filter(Boolean).join(' · '),
+        }))}
+        activeProjectId={activeProjectId}
+        onSelectProject={handleSelectProject}
+        onNewProject={handleNewProject}
         onOpenSettings={() => setOverlay(overlay === 'settings' ? 'none' : 'settings')}
         onOpenDesignSystem={() => setOverlay(overlay === 'design' ? 'none' : 'design')}
-        onDeleteSession={handleDeleteSession}
+        onDeleteProject={handleDeleteProject}
+        onOpenFileWorkspace={() => setShowFileWorkspace(true)}
       />
 
       {showMainContent ? (
         <div className="flex-1 flex overflow-hidden">
           <ChatPanel
-            messages={activeSession?.messages ?? []}
+            messages={designMessages}
             isStreaming={isStreaming}
             onSend={handleSend}
             onAbort={handleAbort}
-            sessionTitle={activeSession?.title ?? ''}
-            modelLabel={modelLabel}
+            sessionTitle={activeProject ? activeProject.name : ''}
+            projectMeta={projectMeta}
+            conversations={conversations.map((c) => ({
+              id: c.id,
+              title: c.title || '初始会话',
+            }))}
+            activeConversationId={activeConversationId}
+            onNewConversation={() => handleNewConversation()}
+            onSelectConversation={handleSelectConversation}
+            onDeleteConversation={handleDeleteConversation}
+            modelLabel={modelConfig.model}
+            disabled={!hasActiveWorkspace}
+            emptyState={activeProject ? 'conversation' : 'project'}
+            onCreateProject={handleNewProject}
+            questionForm={questionForm}
+            onQuestionFormSubmit={(answers: QuestionFormAnswers) => {
+              setQuestionForm(null)
+              handleSend('', answers)
+            }}
           />
           <PreviewPanel
-            htmlContent={activeSession?.htmlContent ?? ''}
+            htmlContent={htmlContent}
             isLoading={isStreaming}
+            onExport={() => {
+              const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' })
+              const url = URL.createObjectURL(blob)
+              const a = document.createElement('a')
+              a.href = url
+              a.download = 'index.html'
+              document.body.appendChild(a)
+              a.click()
+              document.body.removeChild(a)
+              URL.revokeObjectURL(url)
+            }}
           />
         </div>
-      ) : (
-        <div className="flex-1 flex flex-col bg-cream overflow-y-auto">
-          {/* Overlay header */}
-          <div className="px-5 py-3 border-b border-border flex items-center justify-between">
-            <h2 className="text-sm font-semibold">
-              {overlay === 'settings' ? '设置' : '设计系统'}
-            </h2>
-            <button
-              onClick={() => setOverlay('none')}
-              className="w-7 h-7 border-none rounded-[4px] bg-transparent text-muted-text cursor-pointer flex items-center justify-center hover:bg-charcoal-04 hover:text-charcoal"
-            >
-              <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
-                <path d="M4 4l10 10M14 4L4 14" />
-              </svg>
-            </button>
-          </div>
-
-          {/* Overlay content */}
-          <div className="p-5 max-w-[440px] flex flex-col gap-4">
-            {overlay === 'settings' && (
-              <>
-                <div className="flex flex-col gap-1">
-                  <label className="text-[11px] font-semibold text-charcoal-83 uppercase tracking-wide">API 地址</label>
-                  <input
-                    type="url"
-                    placeholder="https://api.anthropic.com"
-                    className="px-2.5 py-2 border border-border rounded-[8px] bg-off-white text-[13px] text-charcoal outline-none transition-colors focus:border-charcoal-12 placeholder:text-muted-text"
-                  />
-                  <span className="text-[11px] text-muted-text">兼容 OpenAI 格式的 API 端点</span>
-                </div>
-                <div className="flex flex-col gap-1">
-                  <label className="text-[11px] font-semibold text-charcoal-83 uppercase tracking-wide">API Key</label>
-                  <input
-                    type="password"
-                    placeholder="sk-ant-..."
-                    className="px-2.5 py-2 border border-border rounded-[8px] bg-off-white text-[13px] text-charcoal outline-none transition-colors focus:border-charcoal-12 placeholder:text-muted-text"
-                  />
-                </div>
-                <div className="flex flex-col gap-1">
-                  <label className="text-[11px] font-semibold text-charcoal-83 uppercase tracking-wide">模型</label>
-                  <select className="px-2.5 py-2 border border-border rounded-[8px] bg-off-white text-[13px] text-charcoal outline-none transition-colors focus:border-charcoal-12">
-                    <option>Claude Sonnet 4</option>
-                    <option>GPT-4o</option>
-                    <option>智谱 GLM-4</option>
-                    <option>自定义</option>
-                  </select>
-                </div>
-                <div className="flex gap-2 mt-1">
-                  <button className="px-5 py-2 bg-charcoal text-off-white border-none rounded-full text-[13px] font-semibold cursor-pointer shadow-[rgba(255,255,255,0.2)_0_0.5px_0_0_inset,rgba(0,0,0,0.2)_0_0_0_0.5px_inset,rgba(0,0,0,0.05)_0_1px_2px_0] hover:opacity-88">
-                    保存配置
-                  </button>
-                  <button className="px-5 py-2 bg-transparent text-charcoal border border-border rounded-full text-[13px] font-medium cursor-pointer hover:bg-charcoal-04 hover:border-charcoal-12">
-                    测试连接
-                  </button>
-                </div>
-              </>
-            )}
-
-            {overlay === 'design' && (
-              <div className="text-muted-text text-[13px]">
-                设计系统配置面板（TODO 5 实现）
+      ) : overlay === 'settings' ? (
+        <SettingsPanel
+          config={modelConfig}
+          onUpdate={updateConfig}
+          onTestConnection={(config) => createModelClient(config).testConnection()}
+          onListModels={(config) => createModelClient(config).listModels()}
+          onClose={() => setOverlay('none')}
+        />
+      ) : overlay === 'design' ? (
+        <div className="flex-1 flex bg-cream overflow-hidden">
+          {/* 左侧：Token 预览 */}
+          <div className="flex-1 border-r border-border overflow-auto bg-white">
+            {loadingPreview ? (
+              <div className="h-full flex items-center justify-center text-muted-foreground">
+                加载中...
+              </div>
+            ) : designSystemPreview ? (
+              <iframe
+                srcDoc={designSystemPreview}
+                className="w-full h-full border-0"
+                title="设计系统预览"
+              />
+            ) : (
+              <div className="h-full flex items-center justify-center text-muted-foreground">
+                无法加载预览
               </div>
             )}
           </div>
+
+          {/* 右侧：DESIGN.md */}
+          <div className="flex-1 overflow-auto bg-cream">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-semibold">Artistic 设计系统</h2>
+                <button
+                  onClick={() => setOverlay('none')}
+                  aria-label="关闭"
+                  className="w-7 h-7 border-none rounded bg-transparent text-muted-foreground cursor-pointer flex items-center justify-center hover:bg-muted"
+                >
+                  ✕
+                </button>
+              </div>
+              <div className="prose max-w-none bg-white rounded-lg border border-border p-6">
+                <pre className="whitespace-pre-wrap text-sm leading-relaxed">
+                  {designSystemContent || '加载中...'}
+                </pre>
+              </div>
+            </div>
+          </div>
         </div>
+      ) : null}
+
+      {/* New Project Modal */}
+      <NewProjectPanel
+        open={showNewProject}
+        onCancel={() => setShowNewProject(false)}
+        onCreateProject={handleCreateProject}
+      />
+
+      {/* File Workspace Modal */}
+      {activeProjectId && (
+        <FileWorkspace
+          projectId={activeProjectId}
+          open={showFileWorkspace}
+          onClose={() => setShowFileWorkspace(false)}
+        />
       )}
     </div>
   )

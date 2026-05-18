@@ -1,13 +1,27 @@
 import { useState, useRef, useEffect } from 'react'
 import type { DesignMessage } from '@/types/message'
+import DiscoveryForm from './DiscoveryForm'
+import type { QuestionForm, QuestionFormAnswers } from '@/artifacts/question-form'
+import { Plus, Trash2 } from 'lucide-react'
 
 interface ChatPanelProps {
   messages: DesignMessage[]
   isStreaming: boolean
-  onSend: (text: string) => void
+  onSend: (text: string, formAnswers?: QuestionFormAnswers) => void
   onAbort: () => void
   sessionTitle: string
+  projectMeta?: string
+  conversations: Array<{ id: string; title: string }>
+  activeConversationId: string | null
+  onNewConversation: () => void
+  onSelectConversation: (id: string) => void
+  onDeleteConversation: (id: string) => void
   modelLabel: string
+  disabled?: boolean
+  emptyState?: 'project' | 'conversation'
+  onCreateProject?: () => void
+  questionForm?: QuestionForm | null
+  onQuestionFormSubmit?: (answers: QuestionFormAnswers) => void
 }
 
 export default function ChatPanel({
@@ -16,7 +30,18 @@ export default function ChatPanel({
   onSend,
   onAbort,
   sessionTitle,
+  projectMeta,
+  conversations,
+  activeConversationId,
+  onNewConversation,
+  onSelectConversation,
+  onDeleteConversation,
   modelLabel,
+  disabled = false,
+  emptyState = 'conversation',
+  onCreateProject,
+  questionForm,
+  onQuestionFormSubmit,
 }: ChatPanelProps) {
   const [input, setInput] = useState('')
   const [showAttach, setShowAttach] = useState(false)
@@ -41,7 +66,7 @@ export default function ChatPanel({
 
   const handleSend = () => {
     const text = input.trim()
-    if (!text || isStreaming) return
+    if (!text || isStreaming || disabled) return
     onSend(text)
     setInput('')
   }
@@ -71,7 +96,16 @@ export default function ChatPanel({
           minHeight: '44px',
         }}
       >
-        <h2 style={{ fontSize: '13px', fontWeight: 600 }}>{sessionTitle || '新对话'}</h2>
+        <div className="min-w-0">
+          <h2 style={{ fontSize: '13px', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            {sessionTitle || '选择项目'}
+          </h2>
+          {projectMeta && (
+            <div style={{ fontSize: '11px', color: 'var(--color-muted-text)', marginTop: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {projectMeta}
+            </div>
+          )}
+        </div>
         <span
           style={{
             fontSize: '11px',
@@ -82,9 +116,75 @@ export default function ChatPanel({
             fontWeight: 500,
           }}
         >
-          {modelLabel}
+          {modelLabel || '未配置模型'}
         </span>
       </div>
+
+      {sessionTitle && (
+        <div
+          className="flex items-center"
+          style={{
+            gap: '6px',
+            padding: '8px 12px',
+            borderBottom: '1px solid var(--color-border)',
+            overflowX: 'auto',
+          }}
+        >
+          <button
+            onClick={onNewConversation}
+            className="border-none cursor-pointer flex items-center shrink-0"
+            style={{
+              gap: '4px',
+              borderRadius: '9999px',
+              padding: '5px 9px',
+              background: 'var(--color-off-white)',
+              color: 'var(--color-charcoal)',
+              fontSize: '12px',
+              border: '1px solid var(--color-border)',
+            }}
+            title="在当前项目中新建会话"
+          >
+            <Plus size={13} />
+            新会话
+          </button>
+          {conversations.map((conversation) => {
+            const active = conversation.id === activeConversationId
+            return (
+              <div
+                key={conversation.id}
+                className="flex items-center shrink-0"
+                style={{
+                  gap: '4px',
+                  borderRadius: '9999px',
+                  padding: '4px 7px 4px 10px',
+                  background: active ? 'var(--color-charcoal)' : 'var(--color-off-white)',
+                  color: active ? 'var(--color-off-white)' : 'var(--color-charcoal-83)',
+                  fontSize: '12px',
+                  border: active ? '1px solid var(--color-charcoal)' : '1px solid var(--color-border)',
+                }}
+              >
+                <button
+                  onClick={() => onSelectConversation(conversation.id)}
+                  className="border-none bg-transparent cursor-pointer p-0"
+                  style={{ color: 'inherit', font: 'inherit' }}
+                >
+                  {conversation.title}
+                </button>
+                {conversations.length > 1 && (
+                  <button
+                    onClick={() => onDeleteConversation(conversation.id)}
+                    className="border-none bg-transparent cursor-pointer flex items-center justify-center"
+                    style={{ color: 'inherit', opacity: 0.7, padding: '1px' }}
+                    title="删除会话"
+                  >
+                    <Trash2 size={12} />
+                  </button>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      )}
 
       {/* Messages */}
       <div
@@ -93,10 +193,41 @@ export default function ChatPanel({
       >
         {messages.length === 0 && (
           <div
-            className="flex-1 flex items-center justify-center"
-            style={{ color: 'var(--color-muted-text)', fontSize: '13px' }}
+            className="flex-1 flex flex-col items-center justify-center text-center"
+            style={{ color: 'var(--color-muted-text)', fontSize: '13px', gap: '10px', padding: '24px' }}
           >
-            描述你想要的页面...
+            {emptyState === 'project' ? (
+              <>
+                <div style={{ fontSize: '15px', fontWeight: 600, color: 'var(--color-charcoal)' }}>先创建项目</div>
+                <div style={{ maxWidth: '260px', lineHeight: 1.6 }}>
+                  项目会保存设计系统、页面类型和平台信息。创建后再开始对话生成页面。
+                </div>
+                {onCreateProject && (
+                  <button
+                    onClick={onCreateProject}
+                    className="border-none cursor-pointer"
+                    style={{
+                      marginTop: '4px',
+                      borderRadius: '9999px',
+                      padding: '8px 14px',
+                      background: 'var(--color-charcoal)',
+                      color: 'var(--color-off-white)',
+                      fontSize: '13px',
+                      fontWeight: 600,
+                    }}
+                  >
+                    新建项目
+                  </button>
+                )}
+              </>
+            ) : (
+              <>
+                <div style={{ fontSize: '15px', fontWeight: 600, color: 'var(--color-charcoal)' }}>开始项目会话</div>
+                <div style={{ maxWidth: '260px', lineHeight: 1.6 }}>
+                  描述你要设计的页面，Laifu 会结合当前项目的设计系统和 skill 生成结果。
+                </div>
+              </>
+            )}
           </div>
         )}
         {messages.map((msg, i) => {
@@ -176,6 +307,12 @@ export default function ChatPanel({
           }
           return null
         })}
+        {questionForm && onQuestionFormSubmit && (
+          <DiscoveryForm
+            form={questionForm}
+            onSubmit={onQuestionFormSubmit}
+          />
+        )}
         <div ref={msgsEndRef} />
       </div>
 
@@ -283,7 +420,7 @@ export default function ChatPanel({
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder={isStreaming ? '生成中...' : '描述你想要的页面...'}
-            disabled={isStreaming}
+            disabled={isStreaming || disabled}
             rows={1}
             style={{
               flex: 1,
@@ -293,6 +430,7 @@ export default function ChatPanel({
               fontSize: '13px',
               lineHeight: 1.5,
               color: 'var(--color-charcoal)',
+              opacity: disabled ? 0.55 : 1,
               resize: 'none',
               outline: 'none',
               height: '20px',
@@ -323,6 +461,7 @@ export default function ChatPanel({
             <button
               onClick={handleSend}
               disabled={!input.trim()}
+              disabled={!input.trim() || disabled}
               className="border-none cursor-pointer flex items-center justify-center shrink-0"
               style={{
                 width: '28px',
@@ -333,7 +472,7 @@ export default function ChatPanel({
                 boxShadow:
                   'rgba(255,255,255,0.2) 0 0.5px 0 0 inset, rgba(0,0,0,0.2) 0 0 0 0.5px inset, rgba(0,0,0,0.05) 0 1px 2px',
                 transition: 'opacity 0.12s, background 0.12s',
-                opacity: input.trim() ? 1 : 0.4,
+                opacity: input.trim() && !disabled ? 1 : 0.4,
               }}
               title="发送"
             >

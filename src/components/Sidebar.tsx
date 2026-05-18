@@ -3,29 +3,32 @@ import { PanelLeftClose, PanelLeftOpen, Plus, Search, Palette, Settings, Ellipsi
 
 interface SidebarProps {
   collapsed: boolean
+  overlay: 'none' | 'settings' | 'design' | 'new-project'
   onToggle: () => void
-  sessions: Array<{ id: string; title: string }>
-  activeSessionId: string | null
-  onSelectSession: (id: string) => void
-  onNewChat: () => void
+  projects: Array<{ id: string; name: string; meta?: string }>
+  activeProjectId: string | null
+  onSelectProject: (id: string) => void
+  onNewProject: () => void
   onOpenSettings: () => void
   onOpenDesignSystem: () => void
-  onDeleteSession: (id: string) => void
+  onDeleteProject?: (id: string) => void
+  onOpenFileWorkspace?: () => void
 }
 
 export default function Sidebar({
   collapsed,
+  overlay,
   onToggle,
-  sessions,
-  activeSessionId,
-  onSelectSession,
-  onNewChat,
+  projects,
+  activeProjectId,
+  onSelectProject,
+  onNewProject,
   onOpenSettings,
   onOpenDesignSystem,
-  onDeleteSession,
+  onDeleteProject,
+  onOpenFileWorkspace: _onOpenFileWorkspace, // Reserved for future use
 }: SidebarProps) {
-  const [hoveredSession, setHoveredSession] = useState<string | null>(null)
-  const [hoveredMenu, setHoveredMenu] = useState<string | null>(null)
+  const [hoveredProject, setHoveredProject] = useState<string | null>(null)
   const [openMenuId, setOpenMenuId] = useState<string | null>(null)
   const [hoveredLogo, setHoveredLogo] = useState(false)
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
@@ -56,13 +59,11 @@ export default function Sidebar({
 
   // Menu item renderer
   const MenuItem = ({
-    id,
     icon,
     label,
     onClick,
     active = false,
   }: {
-    id: string
     icon: React.ReactNode
     label: string
     onClick: () => void
@@ -82,11 +83,9 @@ export default function Sidebar({
         color: active ? 'var(--color-charcoal)' : 'var(--color-charcoal-83)',
       }}
       onMouseEnter={(e) => {
-        setHoveredMenu(id)
         if (!active) e.currentTarget.style.background = hoverBg
       }}
       onMouseLeave={(e) => {
-        setHoveredMenu(null)
         if (!active) e.currentTarget.style.background = 'transparent'
       }}
     >
@@ -193,10 +192,10 @@ export default function Sidebar({
         )}
       </div>
 
-      {/* New chat — pill button (light style like ChatGPT) */}
+      {/* New project */}
       <div style={{ padding: collapsed ? '4px 8px' : '4px 12px' }}>
         <button
-          onClick={onNewChat}
+          onClick={onNewProject}
           className="flex items-center border-none cursor-pointer transition-colors w-full"
           style={{
             gap: collapsed ? 0 : '8px',
@@ -220,7 +219,7 @@ export default function Sidebar({
           }}
         >
           <Plus size={16} strokeWidth={2} />
-          {!collapsed && <span>新对话</span>}
+          {!collapsed && <span>新建项目</span>}
         </button>
       </div>
 
@@ -248,13 +247,13 @@ export default function Sidebar({
             }}
           >
             <Search size={16} strokeWidth={1.5} style={{ flexShrink: 0 }} />
-            <span style={{ flex: 1 }}>搜索对话</span>
+            <span style={{ flex: 1 }}>搜索项目</span>
           </div>
         </div>
       )}
 
       {/* Recents section */}
-      {!collapsed && sessions.length > 0 && (
+      {!collapsed && projects.length > 0 && (
         <div className="flex flex-col" style={{ marginTop: '4px' }}>
           <div
             style={{
@@ -266,35 +265,42 @@ export default function Sidebar({
               textTransform: 'uppercase' as const,
             }}
           >
-            最近
+            项目
           </div>
           <div className="flex flex-col" style={{ padding: '2px 12px', gap: '4px' }}>
-            {sessions.map((s) => (
+            {projects.map((project) => (
               <div
-                key={s.id}
-                onClick={() => onSelectSession(s.id)}
-                onMouseEnter={() => setHoveredSession(s.id)}
-                onMouseLeave={() => setHoveredSession(null)}
+                key={project.id}
+                onClick={() => onSelectProject(project.id)}
+                onMouseEnter={() => setHoveredProject(project.id)}
+                onMouseLeave={() => setHoveredProject(null)}
                 className="flex items-center cursor-pointer transition-colors"
                 style={{
                   padding: '6px 10px',
                   borderRadius: '8px',
-                  background: s.id === activeSessionId ? activeBg : 'transparent',
+                  background: project.id === activeProjectId ? activeBg : 'transparent',
                   fontSize: '13px',
-                  fontWeight: s.id === activeSessionId ? 500 : 400,
-                  color: s.id === activeSessionId ? 'var(--color-charcoal)' : 'var(--color-charcoal-83)',
+                  fontWeight: project.id === activeProjectId ? 500 : 400,
+                  color: project.id === activeProjectId ? 'var(--color-charcoal)' : 'var(--color-charcoal-83)',
                 }}
                 onMouseOver={(e) => {
-                  if (s.id !== activeSessionId) e.currentTarget.style.background = hoverBg
+                  if (project.id !== activeProjectId) e.currentTarget.style.background = hoverBg
                 }}
                 onMouseOut={(e) => {
-                  if (s.id !== activeSessionId) e.currentTarget.style.background = 'transparent'
+                  if (project.id !== activeProjectId) e.currentTarget.style.background = 'transparent'
                 }}
               >
-                <span className="flex-1 whitespace-nowrap overflow-hidden text-ellipsis">{s.title}</span>
+                <span className="flex-1 min-w-0">
+                  <span className="block whitespace-nowrap overflow-hidden text-ellipsis">{project.name}</span>
+                  {project.meta && (
+                    <span className="block whitespace-nowrap overflow-hidden text-ellipsis" style={{ fontSize: '11px', color: 'var(--color-muted-text)', marginTop: '1px' }}>
+                      {project.meta}
+                    </span>
+                  )}
+                </span>
                 {/* Ellipsis menu on hover */}
-                {hoveredSession === s.id && (
-                  <div className="relative shrink-0" ref={openMenuId === s.id ? menuRef : undefined}>
+                {hoveredProject === project.id && onDeleteProject && (
+                  <div className="relative shrink-0" ref={openMenuId === project.id ? menuRef : undefined}>
                     <button
                       className="border-none bg-transparent cursor-pointer p-0 flex items-center justify-center"
                       style={{
@@ -305,7 +311,7 @@ export default function Sidebar({
                       }}
                       onClick={(e) => {
                         e.stopPropagation()
-                        setOpenMenuId(openMenuId === s.id ? null : s.id)
+                        setOpenMenuId(openMenuId === project.id ? null : project.id)
                       }}
                       onMouseEnter={(e) => {
                         e.currentTarget.style.background = hoverBg
@@ -319,7 +325,7 @@ export default function Sidebar({
                       <Ellipsis size={14} />
                     </button>
                     {/* Popover */}
-                    {openMenuId === s.id && (
+                    {openMenuId === project.id && (
                       <div
                         className="absolute right-0 top-full z-50"
                         style={{
@@ -349,7 +355,7 @@ export default function Sidebar({
                           onClick={(e) => {
                             e.stopPropagation()
                             setOpenMenuId(null)
-                            setConfirmDeleteId(s.id)
+                            setConfirmDeleteId(project.id)
                           }}
                         >
                           <Trash2 size={14} />
@@ -367,26 +373,26 @@ export default function Sidebar({
 
       {collapsed && (
         <div className="flex-1 overflow-y-auto" style={{ padding: '4px 8px' }}>
-          {sessions.map((s) => (
+          {projects.map((project) => (
             <div
-              key={s.id}
-              onClick={() => onSelectSession(s.id)}
+              key={project.id}
+              onClick={() => onSelectProject(project.id)}
               className="flex items-center justify-center cursor-pointer"
               style={{
                 padding: '8px 0',
                 borderRadius: '8px',
-                background: s.id === activeSessionId ? activeBg : 'transparent',
+                background: project.id === activeProjectId ? activeBg : 'transparent',
                 fontSize: '13px',
-                color: s.id === activeSessionId ? 'var(--color-charcoal)' : 'var(--color-charcoal-83)',
-                fontWeight: s.id === activeSessionId ? 500 : 400,
+                color: project.id === activeProjectId ? 'var(--color-charcoal)' : 'var(--color-charcoal-83)',
+                fontWeight: project.id === activeProjectId ? 500 : 400,
               }}
               onMouseEnter={(e) => (e.currentTarget.style.background = hoverBg)}
               onMouseLeave={(e) => {
-                if (s.id !== activeSessionId) e.currentTarget.style.background = 'transparent'
+                if (project.id !== activeProjectId) e.currentTarget.style.background = 'transparent'
               }}
-              title={s.title}
+              title={project.name}
             >
-              <span style={{ opacity: 0.6 }}>{s.title.charAt(0)}</span>
+              <span style={{ opacity: 0.6 }}>{project.name.charAt(0)}</span>
             </div>
           ))}
         </div>
@@ -398,18 +404,16 @@ export default function Sidebar({
       {/* Footer: design system + settings group */}
       <div className="border-t border-border" style={{ padding: collapsed ? '4px 8px' : '6px 12px' }}>
         <MenuItem
-          id="design-system"
           icon={<Palette size={16} strokeWidth={1.4} />}
           label="设计系统"
           onClick={onOpenDesignSystem}
-          active={hoveredMenu === 'design-system'}
+          active={overlay === 'design'}
         />
         <MenuItem
-          id="settings"
           icon={<Settings size={16} strokeWidth={1.4} />}
           label="设置"
           onClick={onOpenSettings}
-          active={hoveredMenu === 'settings'}
+          active={overlay === 'settings'}
         />
       </div>
     </aside>
@@ -434,10 +438,10 @@ export default function Sidebar({
           onClick={(e) => e.stopPropagation()}
         >
           <div style={{ fontSize: '15px', fontWeight: 600, color: 'var(--color-charcoal)', marginBottom: '8px' }}>
-            删除对话
+            删除项目
           </div>
           <div style={{ fontSize: '13px', color: 'var(--color-charcoal-83)', marginBottom: '20px' }}>
-            确定要删除这个对话吗？此操作无法撤销。
+            确定要删除这个项目吗？项目内的会话和文件也会被删除。
           </div>
           <div className="flex justify-end" style={{ gap: '8px' }}>
             <button
@@ -469,7 +473,7 @@ export default function Sidebar({
               onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.85' }}
               onMouseLeave={(e) => { e.currentTarget.style.opacity = '1' }}
               onClick={() => {
-                onDeleteSession(confirmDeleteId)
+                onDeleteProject?.(confirmDeleteId)
                 setConfirmDeleteId(null)
               }}
             >

@@ -10,9 +10,9 @@
  * API 调用超时
  */
 export class TimeoutError extends Error {
-  constructor(public message?: string) {
+  name = 'TimeoutError'
+  constructor(message?: string) {
     super(message || 'API 调用超时，请检查网络连接')
-    this.name = 'TimeoutError'
   }
 }
 
@@ -20,9 +20,9 @@ export class TimeoutError extends Error {
  * API 频率限制
  */
 export class RateLimitError extends Error {
-  constructor(public message?: string) {
+  name = 'RateLimitError'
+  constructor(message?: string) {
     super(message || '请求过于频繁，请稍后再试')
-    this.name = 'RateLimitError'
   }
 }
 
@@ -30,9 +30,9 @@ export class RateLimitError extends Error {
  * API Key 无效
  */
 export class AuthError extends Error {
-  constructor(public message?: string) {
+  name = 'AuthError'
+  constructor(message?: string) {
     super(message || 'API Key 无效，请检查配置')
-    this.name = 'AuthError'
   }
 }
 
@@ -40,9 +40,9 @@ export class AuthError extends Error {
  * 网络错误
  */
 export class NetworkError extends Error {
-  constructor(public message?: string) {
+  name = 'NetworkError'
+  constructor(message?: string) {
     super(message || '网络连接失败，请检查网络')
-    this.name = 'NetworkError'
   }
 }
 
@@ -50,9 +50,9 @@ export class NetworkError extends Error {
  * JSON 解析失败 - CRITICAL GAP（CEO Review 发现无救援动作）
  */
 export class JSONParseError extends Error {
-  constructor(public message?: string) {
+  name = 'JSONParseError'
+  constructor(message?: string) {
     super(message || '生成内容格式异常，系统错误')
-    this.name = 'JSONParseError'
   }
 }
 
@@ -60,9 +60,9 @@ export class JSONParseError extends Error {
  * 空响应
  */
 export class EmptyResponseError extends Error {
-  constructor(public message?: string) {
+  name = 'EmptyResponseError'
+  constructor(message?: string) {
     super(message || 'API 返回空响应')
-    this.name = 'EmptyResponseError'
   }
 }
 
@@ -70,9 +70,9 @@ export class EmptyResponseError extends Error {
  * 工具执行错误
  */
 export class ToolError extends Error {
-  constructor(public message?: string) {
+  name = 'ToolError'
+  constructor(message?: string) {
     super(message || '工具执行失败')
-    this.name = 'ToolError'
   }
 }
 
@@ -80,9 +80,9 @@ export class ToolError extends Error {
  * 工具执行超时
  */
 export class ToolTimeoutError extends Error {
-  constructor(public message?: string) {
+  name = 'ToolTimeoutError'
+  constructor(message?: string) {
     super(message || '工具执行超时，请重试')
-    this.name = 'ToolTimeoutError'
   }
 }
 
@@ -90,9 +90,9 @@ export class ToolTimeoutError extends Error {
  * 主题应用失败
  */
 export class ThemeError extends Error {
-  constructor(public message?: string) {
+  name = 'ThemeError'
+  constructor(message?: string) {
     super(message || '应用主题失败，使用默认样式')
-    this.name = 'ThemeError'
   }
 }
 
@@ -100,9 +100,9 @@ export class ThemeError extends Error {
  * 导出失败
  */
 export class ExportError extends Error {
-  constructor(public message?: string) {
+  name = 'ExportError'
+  constructor(message?: string) {
     super(message || '导出失败，请手动复制')
-    this.name = 'ExportError'
   }
 }
 
@@ -110,9 +110,9 @@ export class ExportError extends Error {
  * 存储空间不足 - CRITICAL GAP（CEO Review 发现无救援动作）
  */
 export class StorageQuotaError extends Error {
-  constructor(public message?: string) {
+  name = 'StorageQuotaError'
+  constructor(message?: string) {
     super(message || '存储空间不足，请清理后重试')
-    this.name = 'StorageQuotaError'
   }
 }
 
@@ -120,9 +120,9 @@ export class StorageQuotaError extends Error {
  * 存储被禁用 - CRITICAL GAP（CEO Review 发现无救援动作）
  */
 export class StorageDisabledError extends Error {
-  constructor(public message?: string) {
+  name = 'StorageDisabledError'
+  constructor(message?: string) {
     super(message || '存储功能被禁用，无法保存配置')
-    this.name = 'StorageDisabledError'
   }
 }
 
@@ -132,11 +132,7 @@ export class StorageDisabledError extends Error {
  * 错误救援配置
  * 每个错误类型的救援动作配置
  */
-export const ERROR_RESCUE_MAP: Record<string, {
-  retries: number
-  userMessage: string
-  rescueAction: () => void | Promise<void>
-}> = {
+export const ERROR_RESCUE_MAP: Record<string, any> = {
   // API 错误
   [TimeoutError.name]: {
     retries: 2,

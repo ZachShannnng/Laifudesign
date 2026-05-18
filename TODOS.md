@@ -43,15 +43,19 @@
 
 ### W1-W2: 模型客户端 + 工具系统
 
-**TODO 3: 可配置 ModelClient** ⭐ 重构
+**TODO 3: 可配置 ModelClient** ✅ 已完成 (2026-05-02)
 - **What:** 实现通用模型客户端，支持用户配置 API 地址/Key/模型
-  - 配置界面：设置 → 模型配置
-  - 预设模板：Anthropic、OpenAI、智谱、自定义
-  - 统一的流式接口
-- **Why:** 不依赖单一模型，真正的智能体框架
-- **Pros:** 用户可自由选择模型，产品不受单一供应商限制
-- **Cons:** 需要处理不同 API 格式的差异
-- **Context:** 基于 Claude Code 的 providers.ts + client.ts
+  - 统一 OpenAI 兼容 SSE 客户端（1 个客户端覆盖所有 provider）
+  - 提供商：OpenAI、智谱、自定义（无 Anthropic，不预设 URL）
+  - apiUrl 含完整路径（如 /v1/chat/completions），支持中转站
+  - 设置面板流程：选提供商 → 填 URL+Key → 测试连接 → 自动发现模型 → 选模型 → 保存
+  - 温度/MaxToken 折叠在高级设置下
+  - 连接成功后自动 GET /v1/models 发现可用模型
+  - 交互状态：保存 toast 反馈、测试连接 spinner + 结果、API Key 格式验证
+  - a11y：Tab 顺序、Enter 提交、ARIA labels
+  - DesignEngine 消息构建重构（tool_use→tool_calls、tool_result→role:tool）
+  - vitest 测试框架 + 核心单元测试（18 tests passing）
+- **Delivered:** `src/engine/openai-compatible.ts`（SSE + fetchModels）、`src/engine/ModelClient.ts`（工厂+listModels）、`src/store/modelConfigStore.ts`（localStorage）、`src/components/SettingsPanel.tsx`（inline style + CSS 变量）、Sidebar overlay 互斥选中
 - **Effort:** M (~2-3 天)
 - **Priority:** P1
 - **Depends on:** TODO 1.5, TODO 2
@@ -119,6 +123,18 @@
 - **Effort:** M (~2-3 天)
 - **Priority:** P1
 - **Depends on:** TODO 3.5, TODO 6
+
+**TODO 7.5: Anthropic 原生 Messages API 支持**
+- **What:** 当 OpenAI 兼容端点对 tool_use 流式支持不完整时，补 Anthropic 原生 Messages API 实现
+  - content_block_delta 精细解析
+  - 独立 Anthropic provider 文件（~150 行）
+- **Why:** OpenAI 兼容端点对 tool_use 流式支持可能不完整
+- **Pros:** Anthropic tool_use 流式解析更精确，保留原生 API 完整能力
+- **Cons:** 多维护 ~150 行 Anthropic 原生实现
+- **Context:** MVP 选了方案 A（统一 OpenAI 兼容），方案 B（双轨）作为后续升级路径。触发条件：Anthropic 兼容端点 tool_use 不完整时。注意：当前 provider 列表已移除 Anthropic，用户通过「自定义」或中转站使用 Anthropic 模型
+- **Effort:** S (~0.5 天)
+- **Priority:** P2
+- **Depends on:** TODO 3 完成后验证 Anthropic 兼容端点能力
 
 **TODO 8: 基础错误处理**
 - **What:** 在 ModelClient 和 DesignEngine 中实现错误处理
@@ -214,6 +230,8 @@
 | 设计系统导入导出 | 手动编辑 JSON | P2 |
 | 多页面项目管理 | 单页面足够 | P2 |
 | 输入验证 | 最小版本跳过 | P3 |
+| 设置面板首次使用引导 | 空白表单够用，后续加引导文案 | P3 |
+| 设置面板响应式布局 | MVP 只做桌面（min-width 1024px） | P3 |
 
 ---
 
@@ -223,7 +241,8 @@
 | 文件 | 说明 | 来源 | 状态 |
 |------|------|------|------|
 | `src/engine/DesignEngine.ts` | 设计会话管理引擎 | 基于 Claude Code QueryEngine | ✅ 骨架 |
-| `src/engine/ModelClient.ts` | 可配置模型客户端 | 基于 Claude Code client.ts | ⏳ 占位，TODO 3 完善 |
+| `src/engine/ModelClient.ts` | 可配置模型客户端（统一 SSE + fetchModels） | 基于 Claude Code client.ts | ✅ 已交付 |
+| `src/engine/openai-compatible.ts` | OpenAI 兼容 SSE 客户端 + fetchModels | 基于 Claude Code providers.ts | ✅ 已交付 |
 | `src/types/message.ts` | 设计消息类型定义 | 基于 Claude Code message.ts | ✅ 已交付 |
 | `src/types/tool.ts` | 设计工具类型定义 | 基于 Claude Code Tool.ts | ✅ 已交付 |
 | `src/types/context.ts` | 设计上下文类型定义 | 基于 Claude Code ToolUseContext | ✅ 已交付 |
@@ -251,7 +270,7 @@
 |------|------|------|------|
 | `src/types/design-system.ts` | 设计系统类型 + 默认配置 | 基于 Lovable DEFAULT_DESIGN_SYSTEM | ✅ |
 | `src/store/designStore.ts` | 设计状态管理 | - | ❌ 未实现 |
-| `src/store/modelConfigStore.ts` | 模型配置管理 | - | ❌ 未实现 |
+| `src/store/modelConfigStore.ts` | 模型配置 localStorage 持久化 | - | ✅ 已交付 |
 | `src/store/designSystemStore.ts` | 设计系统配置管理 | - | ❌ 未实现 |
 
 ---

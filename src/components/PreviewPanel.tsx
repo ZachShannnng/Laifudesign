@@ -3,9 +3,12 @@ import { useState, useRef } from 'react'
 interface PreviewPanelProps {
   htmlContent: string
   isLoading: boolean
+  onFullscreen?: () => void
+  onExport?: () => void
+  onShowSnapshots?: () => void
 }
 
-export default function PreviewPanel({ htmlContent, isLoading }: PreviewPanelProps) {
+export default function PreviewPanel({ htmlContent, isLoading, onFullscreen, onExport, onShowSnapshots }: PreviewPanelProps) {
   const [showCode, setShowCode] = useState(false)
   const iframeRef = useRef<HTMLIFrameElement>(null)
 
@@ -62,6 +65,8 @@ export default function PreviewPanel({ htmlContent, isLoading }: PreviewPanelPro
 
         {/* Fullscreen */}
         <button
+          onClick={onFullscreen}
+          disabled={!onFullscreen}
           style={tbBase}
           onMouseEnter={(e) => {
             e.currentTarget.style.background = 'var(--color-charcoal-04)'
@@ -72,6 +77,7 @@ export default function PreviewPanel({ htmlContent, isLoading }: PreviewPanelPro
             e.currentTarget.style.color = 'var(--color-muted-text)'
           }}
           title="全屏"
+          aria-disabled={!onFullscreen}
         >
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round">
             <path d="M2 6V2h4M10 2h4v4M14 10v4h-4M6 14H2v-4" />
@@ -83,6 +89,8 @@ export default function PreviewPanel({ htmlContent, isLoading }: PreviewPanelPro
 
         {/* Export */}
         <button
+          onClick={onExport}
+          disabled={!htmlContent || !onExport}
           style={tbBase}
           onMouseEnter={(e) => {
             e.currentTarget.style.background = 'var(--color-charcoal-04)'
@@ -93,6 +101,7 @@ export default function PreviewPanel({ htmlContent, isLoading }: PreviewPanelPro
             e.currentTarget.style.color = 'var(--color-muted-text)'
           }}
           title="导出 HTML"
+          aria-disabled={!htmlContent || !onExport}
         >
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round">
             <path d="M2 11v3h12v-3M8 2v8M5 7l3 3 3-3" />
@@ -131,6 +140,8 @@ export default function PreviewPanel({ htmlContent, isLoading }: PreviewPanelPro
 
         {/* Snapshot */}
         <button
+          onClick={onShowSnapshots}
+          disabled={!onShowSnapshots}
           style={tbBase}
           onMouseEnter={(e) => {
             e.currentTarget.style.background = 'var(--color-charcoal-04)'
@@ -141,6 +152,7 @@ export default function PreviewPanel({ htmlContent, isLoading }: PreviewPanelPro
             e.currentTarget.style.color = 'var(--color-muted-text)'
           }}
           title="历史快照"
+          aria-disabled={!onShowSnapshots}
         >
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round">
             <circle cx="8" cy="8" r="6" /><path d="M8 5v3l2 2" />
@@ -191,6 +203,7 @@ export default function PreviewPanel({ htmlContent, isLoading }: PreviewPanelPro
             ref={iframeRef}
             srcDoc={htmlContent}
             title="预览区"
+            sandbox="allow-scripts allow-forms allow-popups allow-downloads"
             style={{ width: '100%', height: '100%', border: 'none', background: '#fff' }}
           />
         )}

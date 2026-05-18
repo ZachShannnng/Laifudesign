@@ -3,7 +3,7 @@
  * 基于 Claude Code QueryEngine，管理设计对话的完整生命周期
  */
 
-import type { DesignMessage, StreamEvent, ToolResult } from '@/types/message'
+import type { DesignMessage, StreamEvent, ToolResult, ToolUseDesignMessage, ToolResultDesignMessage } from '@/types/message'
 import type { DesignTool } from '@/types/tool'
 import type { DesignContext, DesignSession } from '@/types/context'
 import type { DesignSystemConfig } from '@/types/design-system'
@@ -75,17 +75,14 @@ export class DesignEngine {
     this.abortController = new AbortController()
 
     try {
-      // 构建模型输入
-      const modelMessages = session.messages.map((m) => ({
-        role: m.role === 'tool' ? 'tool' : m.role,
-        content: this.extractContent(m),
-      }))
+      // 构建模型输入（OpenAI 兼容格式）
+      const modelMessages = this.buildOpenAIMessages(session)
 
-      // 构建工具定义
+      // 构建工具定义（OpenAI function calling 格式）
       const toolDefs = Array.from(this.toolMap.values()).map((t) => ({
         name: t.name,
         description: t.description,
-        input_schema: t.inputSchema,
+        parameters: t.inputSchema,
       }))
 
       // 构建系统提示词
@@ -100,12 +97,16 @@ export class DesignEngine {
         if (chunk.type === 'text') {
           yield { type: 'text', content: chunk.content! }
         } else if (chunk.type === 'tool_use') {
+          // 生成 tool_call_id（OpenAI 兼容格式要求）
+          const toolCallId = `call_${crypto.randomUUID().replace(/-/g, '').slice(0, 24)}`
+
           // 记录工具调用消息
-          const toolUseMessage: DesignMessage = {
+          const toolUseMessage: ToolUseDesignMessage = {
             role: 'assistant',
             type: 'tool_use',
             toolName: chunk.toolName!,
             toolInput: chunk.toolInput!,
+            toolCallId,
             timestamp: new Date(),
           }
           session.messages.push(toolUseMessage)
@@ -120,9 +121,10 @@ export class DesignEngine {
           )
 
           // 记录工具结果
-          const toolResultMessage: DesignMessage = {
+          const toolResultMessage: ToolResultDesignMessage = {
             role: 'tool',
             toolName: chunk.toolName!,
+            toolCallId,
             result,
             isError: result.metadata?.isError === true,
             timestamp: new Date(),
@@ -141,13 +143,8 @@ export class DesignEngine {
         }
       }
 
-      // 添加助手消息（汇总本次输出）
-      const assistantMessage: DesignMessage = {
-        role: 'assistant',
-        content: this.summarizeAssistantContent(session),
-        timestamp: new Date(),
-      }
-      session.messages.push(assistantMessage)
+      // 不再自动追加 assistant 消息
+      // App.tsx 已在流中逐步添加消息，避免重复
     } catch (err) {
       session.state = 'error'
       const errorMsg = err instanceof Error ? err.message : String(err)
@@ -251,22 +248,36 @@ Rules:
 Generate UI code based on the above specs.`
   }
 
-  private extractContent(message: DesignMessage): string {
-    if (message.role === 'user') return message.content
-    if (message.role === 'assistant' && 'content' in message) return message.content
-    if (message.role === 'assistant' && 'type' in message) {
-      return `[Tool: ${message.toolName}] ${JSON.stringify(message.toolInput)}`
-    }
-    if (message.role === 'tool') return message.result.output
-    return ''
-  }
+  /**
+   * 构建 OpenAI 兼容格式的消息数组
+   * tool_use → assistant + tool_calls
+   * tool_result → role:tool + tool_call_id
+   */
+  private buildOpenAIMessages(session: DesignSession): Array<{ role: string; content: string }> {
+    const result: Array<{ role: string; content: string }> = []
 
-  private summarizeAssistantContent(session: DesignSession): string {
-    const lastAssistant = [...session.messages]
-      .reverse()
-      .find((m): m is Extract<DesignMessage, { role: 'assistant'; content: string }> =>
-        m.role === 'assistant' && 'content' in m && !('type' in m)
-      )
-    return lastAssistant?.content ?? ''
+    for (const msg of session.messages) {
+      if (msg.role === 'user') {
+        result.push({ role: 'user', content: msg.content })
+      } else if (msg.role === 'assistant' && 'type' in msg && msg.type === 'tool_use') {
+        // tool_use 消息：转为 assistant + tool_calls 格式
+        // OpenAI 格式要求 content 为 null，工具调用在 tool_calls 字段
+        // 这里简化为文本描述，实际 tool_calls 由 ModelClient 在发送时处理
+        result.push({
+          role: 'assistant',
+          content: `[Tool: ${msg.toolName}] ${JSON.stringify(msg.toolInput)}`,
+        })
+      } else if (msg.role === 'assistant' && 'content' in msg) {
+        result.push({ role: 'assistant', content: msg.content })
+      } else if (msg.role === 'tool') {
+        // tool_result：转为 role:tool 格式
+        result.push({
+          role: 'tool',
+          content: msg.result.output,
+        })
+      }
+    }
+
+    return result
   }
 }

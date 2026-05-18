@@ -67,12 +67,12 @@ export const TRACE_CONFIG = {
  * 日志工具函数
  */
 export class Logger {
-  private static logTarget: LogTarget[] = []
+  private static logTarget: string[] = []
 
   /**
    * 写入日志
    */
-  static log(target: LogTarget | LogTarget[], level: LogLevel, data: any, context?: Record<string, any>) {
+  static log(target: string | string[], level: string, data: any, context?: Record<string, any>) {
     // MVP 阶段：仅写入到 console
     console.log(JSON.stringify({
       timestamp: new Date().toISOString(),

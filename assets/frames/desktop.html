@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Desktop Frame</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      background: #1a1a1a;
+    }
+    .browser-frame {
+      width: 1200px;
+      max-width: 95vw;
+      background: #e5e5e5;
+      border-radius: 8px;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+      overflow: hidden;
+    }
+    .browser-header {
+      display: flex;
+      align-items: center;
+      padding: 8px 12px;
+      background: #f0f0f0;
+      border-bottom: 1px solid #d0d0d0;
+    }
+    .window-controls {
+      display: flex;
+      gap: 8px;
+    }
+    .window-control {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+    }
+    .control-close { background: #ff5f57; }
+    .control-minimize { background: #febc2e; }
+    .control-maximize { background: #28c840; }
+    .address-bar {
+      flex: 1;
+      margin: 0 16px;
+      padding: 6px 12px;
+      background: white;
+      border: 1px solid #d0d0d0;
+      border-radius: 6px;
+      font-size: 13px;
+      color: #666;
+      text-align: center;
+    }
+    .screen {
+      background: white;
+      min-height: 600px;
+      position: relative;
+    }
+    .content {
+      padding: 24px;
+    }
+  </style>
+</head>
+<body>
+  <div class="browser-frame">
+    <div class="browser-header">
+      <div class="window-controls">
+        <div class="window-control control-close"></div>
+        <div class="window-control control-minimize"></div>
+        <div class="window-control control-maximize"></div>
+      </div>
+      <div class="address-bar">https://example.com</div>
+    </div>
+    <div class="screen">
+      <div class="content" id="frame-content">
+        <!-- 内容将在这里注入 -->
+      </div>
+    </div>
+  </div>
+  <script>
+    window.addEventListener('message', (e) => {
+      if (e.data.html) {
+        document.getElementById('frame-content').innerHTML = e.data.html;
+        if (e.data.url) {
+          document.querySelector('.address-bar').textContent = e.data.url;
+        }
+      }
+    });
+  </script>
+</body>
+</html>

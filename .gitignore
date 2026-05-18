@@ -12,6 +12,12 @@ dist
 dist-ssr
 *.local
 
+# Laifu local runtime data
+.laifu/
+
+# Electron build artifacts
+release/
+
 # Environment variables
 .env
 .env.local

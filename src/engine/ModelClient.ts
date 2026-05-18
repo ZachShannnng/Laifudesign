@@ -1,11 +1,16 @@
 /**
  * 可配置模型客户端
  * 基于 Claude Code client.ts，支持多提供商
+ * 所有 provider 统一走 OpenAI 兼容 SSE 格式
  */
 
-export type ProviderType = 'anthropic' | 'openai' | 'zhipu' | 'custom'
+import { openAICompatibleStream, testConnection, fetchModels } from './openai-compatible'
+import type { OpenAIChatMessage, OpenAIToolDefinition } from './openai-compatible'
+
+export type ProviderType = string
 
 export interface ModelConfig {
+  /** OpenAI-compatible endpoint or base URL */
   apiUrl: string
   apiKey: string
   model: string
@@ -16,33 +21,13 @@ export interface ModelConfig {
   temperature?: number
 }
 
-/** 预设模型配置模板 */
-export const MODEL_PRESETS: Record<ProviderType, Omit<ModelConfig, 'apiKey'>> = {
-  anthropic: {
-    provider: 'anthropic',
-    apiUrl: 'https://api.anthropic.com',
-    model: 'claude-sonnet-4-20250514',
-    maxTokens: 8192,
-    temperature: 0.7,
-  },
-  openai: {
-    provider: 'openai',
-    apiUrl: 'https://api.openai.com',
-    model: 'gpt-4o',
-    maxTokens: 8192,
-    temperature: 0.7,
-  },
-  zhipu: {
-    provider: 'zhipu',
-    apiUrl: 'https://open.bigmodel.cn/api/paas',
-    model: 'glm-4',
-    maxTokens: 8192,
-    temperature: 0.7,
-  },
+/**
+ * 预设模型配置模板
+ * Legacy defaults. Provider is now a user-facing label, not routing logic.
+ */
+export const MODEL_PRESETS: Record<ProviderType, Omit<ModelConfig, 'apiKey' | 'apiUrl' | 'model'>> = {
   custom: {
     provider: 'custom',
-    apiUrl: '',
-    model: '',
     maxTokens: 8192,
     temperature: 0.7,
   },
@@ -64,7 +49,7 @@ export interface ModelClient {
     messages: Array<{ role: string; content: string }>,
     options?: {
       systemPrompt?: string
-      tools?: Array<{ name: string; description: string; input_schema: unknown }>
+      tools?: Array<{ name: string; description: string; parameters: unknown }>
       abortSignal?: AbortSignal
     }
   ): AsyncIterable<StreamChunk>
@@ -74,6 +59,12 @@ export interface ModelClient {
 
   /** 更新配置 */
   updateConfig(config: Partial<ModelConfig>): void
+
+  /** 测试连接 */
+  testConnection(): Promise<{ ok: boolean; error?: string }>
+
+  /** 获取可用模型列表 */
+  listModels(): Promise<string[]>
 }
 
 /** 创建模型客户端（工厂函数） */
@@ -81,7 +72,7 @@ export function createModelClient(config: ModelConfig): ModelClient {
   return new DefaultModelClient(config)
 }
 
-/** 默认模型客户端实现（TODO 3 中完善各提供商适配） */
+/** 默认模型客户端实现 — 统一 OpenAI 兼容 SSE */
 class DefaultModelClient implements ModelClient {
   private config: ModelConfig
 
@@ -90,16 +81,47 @@ class DefaultModelClient implements ModelClient {
   }
 
   async *stream(
-    _messages: Array<{ role: string; content: string }>,
-    _options?: {
+    messages: Array<{ role: string; content: string }>,
+    options?: {
       systemPrompt?: string
-      tools?: Array<{ name: string; description: string; input_schema: unknown }>
+      tools?: Array<{ name: string; description: string; parameters: unknown }>
       abortSignal?: AbortSignal
     }
   ): AsyncIterable<StreamChunk> {
-    // TODO: 按 provider 类型调用不同 API
-    // 当前为占位实现，TODO 3 中完善
-    yield { type: 'error', error: `Provider "${this.config.provider}" not yet implemented. Complete TODO 3.` }
+    // 转换为 OpenAI 兼容消息格式
+    const openaiMessages: OpenAIChatMessage[] = []
+
+    if (options?.systemPrompt) {
+      openaiMessages.push({ role: 'system', content: options.systemPrompt })
+    }
+
+    for (const msg of messages) {
+      openaiMessages.push({
+        role: msg.role as OpenAIChatMessage['role'],
+        content: msg.content,
+      })
+    }
+
+    // 转换工具定义为 OpenAI 格式
+    const openaiTools: OpenAIToolDefinition[] | undefined = options?.tools?.map((t) => ({
+      type: 'function' as const,
+      function: {
+        name: t.name,
+        description: t.description,
+        parameters: t.parameters,
+      },
+    }))
+
+    yield* openAICompatibleStream({
+      apiUrl: this.config.apiUrl,
+      apiKey: this.config.apiKey,
+      model: this.config.model,
+      messages: openaiMessages,
+      tools: openaiTools,
+      maxTokens: this.config.maxTokens,
+      temperature: this.config.temperature,
+      abortSignal: options?.abortSignal,
+    })
   }
 
   getConfig(): ModelConfig {
@@ -108,5 +130,20 @@ class DefaultModelClient implements ModelClient {
 
   updateConfig(config: Partial<ModelConfig>): void {
     this.config = { ...this.config, ...config }
+  }
+
+  async testConnection(): Promise<{ ok: boolean; error?: string }> {
+    return testConnection({
+      apiUrl: this.config.apiUrl,
+      apiKey: this.config.apiKey,
+      model: this.config.model,
+    })
+  }
+
+  async listModels(): Promise<string[]> {
+    return fetchModels({
+      apiUrl: this.config.apiUrl,
+      apiKey: this.config.apiKey,
+    })
   }
 }

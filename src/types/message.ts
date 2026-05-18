@@ -26,12 +26,16 @@ export interface ToolUseDesignMessage {
   type: 'tool_use'
   toolName: string
   toolInput: Record<string, unknown>
+  /** OpenAI 兼容格式的 tool_call_id */
+  toolCallId: string
   timestamp: Date
 }
 
 export interface ToolResultDesignMessage {
   role: 'tool'
   toolName: string
+  /** OpenAI 兼容格式的 tool_call_id，与 ToolUseDesignMessage 对应 */
+  toolCallId: string
   result: ToolResult
   isError: boolean
   timestamp: Date
